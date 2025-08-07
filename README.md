@@ -1,3 +1,16 @@
+为`handy-sshd`添加密钥支持，再也不用密码登录了！
+使用方法:
+1. 从Actions/CI下载最新的可执行文件
+2. 使用 `-k <authorized_keys_path>`指定存储公钥的路径 (如果同时使用`-u <user>:<password>`，则允许同时使用用户名和密码登录)
+3. 使用正确的公私钥连接
+
+来源: [nwtgck/handy-sshd PR #34](https://github.com/nwtgck/handy-sshd/pull/34/commits/8c71f5de349d05b0f5025237cad3314902a01cbe)
+
+该项目在 [wujinjun-MC/simpfun-better-start-script](https://github.com/wujinjun-MC/simpfun-better-start-script/) 也有使用
+
+
+以下是原README:
+
 # handy-sshd
 [![CI](https://github.com/nwtgck/handy-sshd/actions/workflows/ci.yml/badge.svg)](https://github.com/nwtgck/handy-sshd/actions/workflows/ci.yml)
 
