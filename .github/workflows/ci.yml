@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -12,23 +12,21 @@ jobs:
           go-version: "1.20"
       - name: Build for multi-platform
         run: |
-          set -xeu
-          DIST=dist
-          mkdir $DIST
-          # (from: https://www.digitalocean.com/community/tutorials/how-to-build-go-executables-for-multiple-platforms-on-ubuntu-16-04)
-          platforms=("linux/amd64" "darwin/amd64" "linux/arm" "windows/amd64")
-          for platform in "${platforms[@]}"
-          do
-              platform_split=(${platform//\// })
-              export GOOS=${platform_split[0]}
-              export GOARCH=${platform_split[1]}
-              [ $GOOS = "windows" ] && EXTENSION='.exe' || EXTENSION=''
-              BUILD_PATH=handy-sshd-$GOOS-$GOARCH
-              mkdir $BUILD_PATH
-              # Build
-              CGO_ENABLED=0 go build -o "${BUILD_PATH}/handy-sshd${EXTENSION}" main/main.go
-              zip -r "$BUILD_PATH.zip" "$BUILD_PATH"
-          done
+          $platforms = "linux/amd64", "darwin/amd64", "linux/arm", "windows/amd64"
+          foreach ($platform in $platforms) {
+            $split = $platform.split('/')
+            $env:GOOS = $split[0]
+            $env:GOARCH = $split[1]
+            if ($env:GOOS -eq "windows") {
+                $ext = ".exe"
+            } else {
+                $ext = ""
+            }
+            $buildPath = "handy-sshd-$env:GOOS-$env:GOARCH"
+            mkdir $buildPath
+            go build -o "${buildPath}/handy-sshd${ext}" main/main.go
+            Compress-Archive -Path $buildPath -DestinationPath "$buildPath.zip"
+          }
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
