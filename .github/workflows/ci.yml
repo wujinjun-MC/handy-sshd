@@ -3,7 +3,7 @@ name: CI
 on: [push]
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +27,14 @@ jobs:
               mkdir $BUILD_PATH
               # Build
               CGO_ENABLED=0 go build -o "${BUILD_PATH}/handy-sshd${EXTENSION}" main/main.go
+              zip -r "$BUILD_PATH.zip" "$BUILD_PATH"
           done
-      - name: Test
-        run: go test -v ./...
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: multi-platform-binaries
+          path: |
+            handy-sshd-linux-amd64.zip
+            handy-sshd-darwin-amd64.zip
+            handy-sshd-linux-arm.zip
+            handy-sshd-windows-amd64.zip
