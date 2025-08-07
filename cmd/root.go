@@ -147,17 +147,12 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
 	}
 	// (base: https://gist.github.com/jpillora/b480fde82bff51a06238)
 	sshConfig := &ssh.ServerConfig{
-		authorizedKeys := make(map[string]bool)
-		for _, k := range flag.sshAuthKeys {
-			hand, err := os.Open(k)
-			if err != nil { continue }
-			scanner := bufio.NewScanner(hand)
-			for scanner.Scan() {
-				key := scanner.Text()
-				pub, _, _, _, err := ssh.ParseAuthorizedKey([]byte(key))
-				if err != nil { continue }
-				authorizedKeys[string(ssh.FingerprintSHA256(pub))] = true
-			}
+		PublicKeyCallback: func(metadata ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+            if authorizedKeys[string(ssh.FingerprintSHA256(key))] {
+                return nil, nil
+            }
+            return nil, fmt.Errorf("public key rejected for %q", metadata.User())
+        },
 		//Define a function to run when a client attempts a password login
 		PasswordCallback: func(metadata ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
 			for _, user := range sshUsers {
