@@ -29,7 +29,7 @@ jobs:
               CGO_ENABLED=0 go build -o "${BUILD_PATH}/handy-sshd${EXTENSION}" main/main.go
               zip -r "$BUILD_PATH.zip" "$BUILD_PATH"
           done
-      - name: Upload Artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: multi-platform-binaries
