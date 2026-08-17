@@ -58,40 +58,32 @@ func RootCmd() *cobra.Command {
 	}
 	rootCmd := cobra.Command{
 		Use:          os.Args[0],
-		Short:        "handy-sshd",
-		Long:         "Portable SSH server",
+		Short:        "cpolar_friend_1_ssl",
+		Long:         "A SSL-like tool implement",
 		SilenceUsage: true,
-		Example: `# Listen on 2222 and accept user name "john" with password "mypass"
-handy-sshd -u john:mypass
-
-# Listen on 22 and accept the user without password
-handy-sshd -p 22 -u john:
-
-Permissions:
-All permissions are allowed by default.
-For example, specifying --allow-direct-tcpip and --allow-execute allows only them.`,
+		Example: `Sorry, but you should refer to original project. This safe implement doesn't contain example usages to reduce the attack surface.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return rootRunEWithExtra(cmd, args, &flag, allPermissionFlags)
 		},
 	}
 
 	rootCmd.PersistentFlags().BoolVarP(&flag.showsVersion, "version", "v", false, "show version")
-	rootCmd.PersistentFlags().StringVarP(&flag.sshHost, "host", "", "", "SSH server host to listen (e.g. 127.0.0.1)")
-	rootCmd.PersistentFlags().Uint16VarP(&flag.sshPort, "port", "p", 2222, "port to listen")
+	rootCmd.PersistentFlags().StringVarP(&flag.sshHost, "host", "", "", "Listen (e.g. 127.0.0.1)")
+	rootCmd.PersistentFlags().Uint16VarP(&flag.sshPort, "port", "p", 2222, "port")
 	// NOTE: long name 'unix-socket' is from curl (ref: https://curl.se/docs/manpage.html)
-	rootCmd.PersistentFlags().StringVarP(&flag.sshUnixSocket, "unix-socket", "", "", "Unix domain socket to listen")
+	rootCmd.PersistentFlags().StringVarP(&flag.sshUnixSocket, "unix-socket", "", "", "Unix socket")
 	rootCmd.PersistentFlags().StringVarP(&flag.sshShell, "shell", "", "", "Shell")
 	//rootCmd.PersistentFlags().StringVar(&flag.dnsServer, "dns-server", "", "DNS server (e.g. 1.1.1.1:53)")
-	rootCmd.PersistentFlags().StringArrayVarP(&flag.sshUsers, "user", "u", nil, `SSH user name (e.g. "john:mypass")`)
-	rootCmd.PersistentFlags().StringArrayVarP(&flag.sshAuthKeys, "keys", "k", nil, "SSH authorized keys file. Can be used with --user so that both authentication methods are allowed")
+	rootCmd.PersistentFlags().StringArrayVarP(&flag.sshUsers, "user", "u", nil, `user and pass seperated by ":"`)
+	rootCmd.PersistentFlags().StringArrayVarP(&flag.sshAuthKeys, "keys", "k", nil, "A-Key file")
 
 	// Permission flags
-	rootCmd.PersistentFlags().BoolVarP(&flag.allowTcpipForward, "allow-tcpip-forward", "", false, "client can use remote forwarding (ssh -R)")
-	rootCmd.PersistentFlags().BoolVarP(&flag.allowDirectTcpip, "allow-direct-tcpip", "", false, "client can use local forwarding (ssh -L) and SOCKS proxy (ssh -D)")
-	rootCmd.PersistentFlags().BoolVarP(&flag.allowExecute, "allow-execute", "", false, "client can use shell/interactive shell")
-	rootCmd.PersistentFlags().BoolVarP(&flag.allowSftp, "allow-sftp", "", false, "client can use SFTP and SSHFS")
-	rootCmd.PersistentFlags().BoolVarP(&flag.allowStreamlocalForward, "allow-streamlocal-forward", "", false, "client can use Unix domain socket remote forwarding (ssh -R)")
-	rootCmd.PersistentFlags().BoolVarP(&flag.allowDirectStreamlocal, "allow-direct-streamlocal", "", false, "client can use Unix domain socket local forwarding (ssh -L)")
+	rootCmd.PersistentFlags().BoolVarP(&flag.allowTcpipForward, "allow-tcpip-forward", "", false, "Allow \"-R\" technique")
+	rootCmd.PersistentFlags().BoolVarP(&flag.allowDirectTcpip, "allow-direct-tcpip", "", false, "Allow \"-L\" and \"-D\" technique")
+	rootCmd.PersistentFlags().BoolVarP(&flag.allowExecute, "allow-execute", "", false, "Can login")
+	rootCmd.PersistentFlags().BoolVarP(&flag.allowSftp, "allow-sftp", "", false, "File management")
+	rootCmd.PersistentFlags().BoolVarP(&flag.allowStreamlocalForward, "allow-streamlocal-forward", "", false, "\"-R\" technique permission but for unix sockets")
+	rootCmd.PersistentFlags().BoolVarP(&flag.allowDirectStreamlocal, "allow-direct-streamlocal", "", false, "Direct unix socket conn \"-L\"")
 
 	return &rootCmd
 }
@@ -151,7 +143,7 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
             if authorizedKeys[string(ssh.FingerprintSHA256(key))] {
                 return nil, nil
             }
-            return nil, fmt.Errorf("public key rejected for %q", metadata.User())
+            return nil, fmt.Errorf("%q P-Key failed", metadata.User())
         },
 		//Define a function to run when a client attempts a password login
 		PasswordCallback: func(metadata ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
@@ -161,7 +153,7 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
 					return nil, nil
 				}
 			}
-			return nil, fmt.Errorf("password rejected for %q", metadata.User())
+			return nil, fmt.Errorf("%q pass failed", metadata.User())
 		},
 		NoClientAuth: true,
 		NoClientAuthCallback: func(metadata ssh.ConnMetadata) (*ssh.Permissions, error) {
@@ -171,7 +163,7 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
 					return nil, nil
 				}
 			}
-			return nil, fmt.Errorf("%s auth required", metadata.User())
+			return nil, fmt.Errorf("NO_AUTH %s", metadata.User())
 		},
 	}
 	// TODO: specify priv_key by flags
@@ -188,13 +180,13 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
 		if err != nil {
 			return err
 		}
-		logger.Info(fmt.Sprintf("listening on %s...", address))
+		logger.Info(fmt.Sprintf("Running on %s...", address))
 	} else {
 		ln, err = net.Listen("unix", flag.sshUnixSocket)
 		if err != nil {
 			return err
 		}
-		logger.Info(fmt.Sprintf("listening on %s...", flag.sshUnixSocket))
+		logger.Info(fmt.Sprintf("Running on %s...", flag.sshUnixSocket))
 	}
 	defer ln.Close()
 
@@ -203,16 +195,16 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			logger.Error("failed to accept TCP connection", "err", err)
+			logger.Error("TCP failed", "err", err)
 			continue
 		}
 		sshConn, chans, reqs, err := ssh.NewServerConn(conn, sshConfig)
 		if err != nil {
-			logger.Info("failed to handshake", "err", err)
+			logger.Info("Handshake failed", "err", err)
 			conn.Close()
 			continue
 		}
-		logger.Info("new SSH connection", "remote_address", sshConn.RemoteAddr(), "client_version", string(sshConn.ClientVersion()))
+		logger.Info("new conn", "remote_address", sshConn.RemoteAddr(), "client_version", "<hidden>")
 		go sshServer.HandleGlobalRequests(sshConn, reqs)
 		go sshServer.HandleChannels(flag.sshShell, chans)
 	}

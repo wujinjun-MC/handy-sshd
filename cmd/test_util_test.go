@@ -52,7 +52,7 @@ func assertNoExec(t *testing.T, client *ssh.Client) {
 	defer session.Close()
 	_, err = session.Output("whoami")
 	assert.Error(t, err)
-	assert.Equal(t, "ssh: command whoami failed", err.Error())
+	assert.Equal(t, "cannot \"whoami\"", err.Error())
 }
 
 func assertPtyTerminal(t *testing.T, client *ssh.Client) {
@@ -64,7 +64,7 @@ func assertPtyTerminal(t *testing.T, client *ssh.Client) {
 	assert.NoError(t, err)
 	stdin, err := session.StdinPipe()
 	assert.NoError(t, err)
-	_, err = stdin.Write([]byte("echo helloworldviapty\r"))
+	_, err = stdin.Write([]byte("echo hiddenchars\r"))
 	assert.NoError(t, err)
 	stdout, err := session.StdoutPipe()
 	assert.NoError(t, err)
@@ -80,7 +80,7 @@ func assertPtyTerminal(t *testing.T, client *ssh.Client) {
 	time.Sleep(1 * time.Second)
 	session.Close()
 	stdoutBytes := <-stdoutBytesChan
-	assert.Contains(t, string(stdoutBytes), "helloworldviapty")
+	assert.Contains(t, string(stdoutBytes), "hiddenchars")
 }
 
 func assertNoPtyTerminal(t *testing.T, client *ssh.Client) {
@@ -89,7 +89,7 @@ func assertNoPtyTerminal(t *testing.T, client *ssh.Client) {
 	defer session.Close()
 	err = session.RequestPty("xterm", 100, 200, ssh.TerminalModes{})
 	assert.Error(t, err)
-	assert.Equal(t, "ssh: pty-req failed", err.Error())
+	assert.Equal(t, "failing term", err.Error())
 }
 
 func assertLocalPortForwarding(t *testing.T, client *ssh.Client) {
@@ -135,7 +135,7 @@ func assertNoLocalPortForwarding(t *testing.T, client *ssh.Client) {
 	raddr := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 1234}
 	_, err := client.DialTCP("tcp", nil, raddr)
 	assert.Error(t, err)
-	assert.Equal(t, "ssh: rejected: administratively prohibited (direct-tcpip not allowed)", err.Error())
+	assert.Equal(t, "cannot directly tcpip", err.Error())
 }
 
 func assertUnixLocalPortForwarding(t *testing.T, client *ssh.Client) {
@@ -180,7 +180,7 @@ func assertNoUnixLocalPortForwarding(t *testing.T, client *ssh.Client) {
 	remoteUnixSocket := path.Join(os.TempDir(), "test-unix-socket-"+uuid.New().String())
 	_, err := client.Dial("unix", remoteUnixSocket)
 	assert.Error(t, err)
-	assert.Equal(t, "ssh: rejected: administratively prohibited (direct-streamlocal (Unix domain socket) not allowed)", err.Error())
+	assert.Equal(t, "cannot unix domain socket", err.Error())
 }
 
 func assertRemotePortForwarding(t *testing.T, client *ssh.Client) {
@@ -222,7 +222,7 @@ func assertRemotePortForwarding(t *testing.T, client *ssh.Client) {
 func assertNoRemotePortForwarding(t *testing.T, client *ssh.Client) {
 	_, err := client.Listen("tcp", "127.0.0.1:5678")
 	assert.Error(t, err)
-	assert.Equal(t, "ssh: tcpip-forward request denied by peer", err.Error())
+	assert.Equal(t, "FUCKING forwarding requests", err.Error())
 }
 
 func assertUnixRemotePortForwarding(t *testing.T, client *ssh.Client) {
@@ -266,7 +266,7 @@ func assertNoUnixRemotePortForwarding(t *testing.T, client *ssh.Client) {
 	remoteUnixSocket := path.Join(os.TempDir(), "test-unix-socket-"+uuid.New().String())
 	_, err := client.ListenUnix(remoteUnixSocket)
 	assert.Error(t, err)
-	assert.Equal(t, "ssh: streamlocal-forward@openssh.com request denied by peer", err.Error())
+	assert.Equal(t, "fun", err.Error())
 }
 
 func assertSftp(t *testing.T, client *ssh.Client) {
@@ -279,5 +279,5 @@ func assertSftp(t *testing.T, client *ssh.Client) {
 func assertNoSftp(t *testing.T, client *ssh.Client) {
 	_, err := sftp.NewClient(client)
 	assert.Error(t, err)
-	assert.Equal(t, "ssh: subsystem request failed", err.Error())
+	assert.Equal(t, "no sysreq", err.Error())
 }

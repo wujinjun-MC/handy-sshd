@@ -26,10 +26,7 @@ func TestZeroUsers(t *testing.T) {
 	var stderrBuf bytes.Buffer
 	rootCmd.SetErr(&stderrBuf)
 	assert.Error(t, rootCmd.Execute())
-	assert.Equal(t, `Error: No user specified
-e.g. --user "john:mypass"
-e.g. --user "john:"
-`, stderrBuf.String())
+	assert.Equal(t, `Must specify user`, stderrBuf.String())
 }
 
 func TestAllPermissionsAllowed(t *testing.T) {

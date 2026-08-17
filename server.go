@@ -59,18 +59,19 @@ func (s *Server) handleChannel(shell string, newChannel ssh.NewChannel) {
 		s.handleSession(shell, newChannel)
 	case "direct-tcpip":
 		if !s.AllowDirectTcpip {
-			newChannel.Reject(ssh.Prohibited, "direct-tcpip not allowed")
+			//newChannel.Reject(ssh.Prohibited, "direct-tcpip not allowed")
 			break
 		}
 		s.handleDirectTcpip(newChannel)
 	case "direct-streamlocal@openssh.com":
 		if !s.AllowDirectStreamlocal {
-			newChannel.Reject(ssh.Prohibited, "direct-streamlocal (Unix domain socket) not allowed")
+			//newChannel.Reject(ssh.Prohibited, "direct-streamlocal (Unix domain socket) not allowed")
 			break
 		}
 		s.handleDirectStreamlocal(newChannel)
 	default:
-		newChannel.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %s", newChannel.ChannelType()))
+		//newChannel.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %s", newChannel.ChannelType()))
+		break
 	}
 }
 
@@ -79,7 +80,7 @@ func (s *Server) handleSession(shell string, newChannel ssh.NewChannel) {
 	// request for another logical connection
 	connection, requests, err := newChannel.Accept()
 	if err != nil {
-		s.Logger.Info("Could not accept channel", "err", err)
+		s.Logger.Info("generic failure", "err", err)
 		return
 	}
 
@@ -89,8 +90,8 @@ func (s *Server) handleSession(shell string, newChannel ssh.NewChannel) {
 		switch req.Type {
 		case "exec":
 			if !s.AllowExecute {
-				s.Logger.Info("execution not allowed (exec)")
-				req.Reply(false, nil)
+				//s.Logger.Info("execution not allowed (exec)")
+				//req.Reply(false, nil)
 				break
 			}
 			s.handleExecRequest(req, connection)
@@ -102,15 +103,15 @@ func (s *Server) handleSession(shell string, newChannel ssh.NewChannel) {
 			}
 		case "pty-req":
 			if !s.AllowExecute {
-				s.Logger.Info("execution not allowed (pty-req)")
-				req.Reply(false, nil)
+				//s.Logger.Info("execution not allowed (pty-req)")
+				//req.Reply(false, nil)
 				break
 			}
 			termLen := req.Payload[3]
 			w, h := parseDims(req.Payload[termLen+4:])
 			shf, err = s.createPty(shell, connection)
 			if err != nil {
-				req.Reply(false, nil)
+				//req.Reply(false, nil)
 				return
 			}
 			setWinsize(shf, w, h)
@@ -135,7 +136,7 @@ func (s *Server) handleExecRequest(req *ssh.Request, connection ssh.Channel) {
 		Command string
 	}
 	if err := ssh.Unmarshal(req.Payload, &msg); err != nil {
-		s.Logger.Info("failed to parse message in exec", "err", err)
+		s.Logger.Info("parsing failed", "err", err)
 		return
 	}
 	cmdSlice, err := shellwords.Parse(msg.Command)
@@ -189,13 +190,13 @@ func (s *Server) handleSessionSubSystem(req *ssh.Request, connection ssh.Channel
 	}
 	sftpServer, err := sftp.NewServer(connection, serverOptions...)
 	if err != nil {
-		s.Logger.Info("failed to create sftp server", "err", err)
+		//s.Logger.Info("file server failed", "err", err)
 		return
 	}
 	if err := sftpServer.Serve(); err == io.EOF {
 		sftpServer.Close()
 	} else if err != nil {
-		s.Logger.Info("failed to serve sftp server", "err", err)
+		//s.Logger.Info("file server failed to serve", "err", err)
 		return
 	}
 }
@@ -209,19 +210,19 @@ func (s *Server) handleDirectTcpip(newChannel ssh.NewChannel) {
 		SourcePort uint32
 	}
 	if err := ssh.Unmarshal(newChannel.ExtraData(), &msg); err != nil {
-		s.Logger.Info("failed to parse direct-tcpip message", "err", err)
+		//s.Logger.Info("failed to parse direct-tcpip message", "err", err)
 		return
 	}
 	channel, reqs, err := newChannel.Accept()
 	if err != nil {
-		s.Logger.Info("failed to accept", "err", err)
+		//s.Logger.Info("failed to accept", "err", err)
 		return
 	}
 	go ssh.DiscardRequests(reqs)
 	raddr := net.JoinHostPort(msg.RemoteAddr, strconv.Itoa(int(msg.RemotePort)))
 	conn, err := net.Dial("tcp", raddr)
 	if err != nil {
-		s.Logger.Info("failed to dial", "err", err)
+		//s.Logger.Info("failed to dial", "err", err)
 		channel.Close()
 		return
 	}
@@ -248,18 +249,18 @@ func (s *Server) handleDirectStreamlocal(newChannel ssh.NewChannel) {
 		Reserved1  uint32
 	}
 	if err := ssh.Unmarshal(newChannel.ExtraData(), &msg); err != nil {
-		s.Logger.Info("failed to parse direct-streamlocal message", "err", err)
+		//s.Logger.Info("failed to parse direct-streamlocal message", "err", err)
 		return
 	}
 	channel, reqs, err := newChannel.Accept()
 	if err != nil {
-		s.Logger.Info("failed to accept", "err", err)
+		//s.Logger.Info("failed to accept", "err", err)
 		return
 	}
 	go ssh.DiscardRequests(reqs)
 	conn, err := net.Dial("unix", msg.SocketPath)
 	if err != nil {
-		s.Logger.Info("failed to dial", "err", err)
+		//s.Logger.Info("failed to dial", "err", err)
 		channel.Close()
 		return
 	}
@@ -312,7 +313,7 @@ func (s *Server) HandleGlobalRequests(sshConn *ssh.ServerConn, reqs <-chan *ssh.
 		switch req.Type {
 		case "tcpip-forward":
 			if !s.AllowTcpipForward {
-				s.Logger.Info("tcpip-forward not allowed")
+				//s.Logger.Info("tcpip-forward not allowed")
 				req.Reply(false, nil)
 				break
 			}
@@ -325,7 +326,7 @@ func (s *Server) HandleGlobalRequests(sshConn *ssh.ServerConn, reqs <-chan *ssh.
 			}()
 		case "streamlocal-forward@openssh.com":
 			if !s.AllowStreamlocalForward {
-				s.Logger.Info("streamlocal-forward not allowed")
+				//s.Logger.Info("streamlocal-forward not allowed")
 				req.Reply(false, nil)
 				break
 			}
