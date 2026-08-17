@@ -17,12 +17,12 @@ import (
 type flagType struct {
 	//dnsServer    string
 	showsVersion  bool
-	sshHost       string
-	sshPort       uint16
-	sshUnixSocket string
-	sshShell      string
-	sshUsers      []string
-	sshAuthKeys   []string
+	sslHost       string
+	sslPort       uint16
+	sslUnixSocket string
+	sslS      string
+	sslU      []string
+	sslAKeys   []string
 
 	allowTcpipForward       bool
 	allowDirectTcpip        bool
@@ -37,7 +37,7 @@ type permissionFlagType = struct {
 	flagPtr *bool
 }
 
-type sshUser struct {
+type sslU struct {
 	name     string
 	password string
 }
@@ -68,14 +68,14 @@ func RootCmd() *cobra.Command {
 	}
 
 	rootCmd.PersistentFlags().BoolVarP(&flag.showsVersion, "version", "v", false, "show version")
-	rootCmd.PersistentFlags().StringVarP(&flag.sshHost, "host", "", "", "Listen (e.g. 127.0.0.1)")
-	rootCmd.PersistentFlags().Uint16VarP(&flag.sshPort, "port", "p", 2222, "port")
+	rootCmd.PersistentFlags().StringVarP(&flag.sslHost, "host", "", "", "Listen (e.g. 127.0.0.1)")
+	rootCmd.PersistentFlags().Uint16VarP(&flag.sslPort, "port", "p", 2222, "port")
 	// NOTE: long name 'unix-socket' is from curl (ref: https://curl.se/docs/manpage.html)
-	rootCmd.PersistentFlags().StringVarP(&flag.sshUnixSocket, "unix-socket", "", "", "Unix socket")
-	rootCmd.PersistentFlags().StringVarP(&flag.sshShell, "shell", "", "", "Shell")
+	rootCmd.PersistentFlags().StringVarP(&flag.sslUnixSocket, "unix-socket", "", "", "Unix socket")
+	rootCmd.PersistentFlags().StringVarP(&flag.sslS, "shell", "", "", "Shell")
 	//rootCmd.PersistentFlags().StringVar(&flag.dnsServer, "dns-server", "", "DNS server (e.g. 1.1.1.1:53)")
-	rootCmd.PersistentFlags().StringArrayVarP(&flag.sshUsers, "user", "u", nil, `user and pass seperated by ":"`)
-	rootCmd.PersistentFlags().StringArrayVarP(&flag.sshAuthKeys, "keys", "k", nil, "A-Key file")
+	rootCmd.PersistentFlags().StringArrayVarP(&flag.sslU, "user", "u", nil, `user and pass seperated by ":"`)
+	rootCmd.PersistentFlags().StringArrayVarP(&flag.sslAKeys, "keys", "k", nil, "A-Key file")
 
 	// Permission flags
 	rootCmd.PersistentFlags().BoolVarP(&flag.allowTcpipForward, "allow-tcpip-forward", "", false, "Allow \"-R\" technique")
@@ -117,16 +117,16 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
 		AllowStreamlocalForward: flag.allowStreamlocalForward,
 		AllowDirectStreamlocal:  flag.allowDirectStreamlocal,
 	}
-	var sshUsers []sshUser
-	for _, u := range flag.sshUsers {
+	var sslU []sslU
+	for _, u := range flag.sslU {
 		splits := strings.SplitN(u, ":", 2)
 		if len(splits) != 2 {
 			return fmt.Errorf("invalid user format: %s", u)
 		}
-		sshUsers = append(sshUsers, sshUser{name: splits[0], password: splits[1]})
+		sslU = append(sslU, sslU{name: splits[0], password: splits[1]})
 	}
 	authorizedKeys := make(map[string]bool)
-	for _, k := range flag.sshAuthKeys {
+	for _, k := range flag.sslAKeys {
 		hand, err := os.Open(k)
 		if err != nil { continue }
 		scanner := bufio.NewScanner(hand)
@@ -147,7 +147,7 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
         },
 		//Define a function to run when a client attempts a password login
 		PasswordCallback: func(metadata ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
-			for _, user := range sshUsers {
+			for _, user := range sslU {
 				// No auth required
 				if user.name == metadata.User() && user.password == string(pass) {
 					return nil, nil
@@ -157,7 +157,7 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
 		},
 		NoClientAuth: true,
 		NoClientAuthCallback: func(metadata ssh.ConnMetadata) (*ssh.Permissions, error) {
-			for _, user := range sshUsers {
+			for _, user := range sslU {
 				// No auth required
 				if user.name == metadata.User() && user.password == "" {
 					return nil, nil
@@ -174,19 +174,19 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
 	sshConfig.AddHostKey(pri)
 
 	var ln net.Listener
-	if flag.sshUnixSocket == "" {
-		address := net.JoinHostPort(flag.sshHost, strconv.Itoa(int(flag.sshPort)))
+	if flag.sslUnixSocket == "" {
+		address := net.JoinHostPort(flag.sslHost, strconv.Itoa(int(flag.sslPort)))
 		ln, err = net.Listen("tcp", address)
 		if err != nil {
 			return err
 		}
 		logger.Info(fmt.Sprintf("Running on %s...", address))
 	} else {
-		ln, err = net.Listen("unix", flag.sshUnixSocket)
+		ln, err = net.Listen("unix", flag.sslUnixSocket)
 		if err != nil {
 			return err
 		}
-		logger.Info(fmt.Sprintf("Running on %s...", flag.sshUnixSocket))
+		logger.Info(fmt.Sprintf("Running on %s...", flag.sslUnixSocket))
 	}
 	defer ln.Close()
 
@@ -206,7 +206,7 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
 		}
 		logger.Info("new conn", "remote_address", sshConn.RemoteAddr(), "client_version", "<hidden>")
 		go sshServer.HandleGlobalRequests(sshConn, reqs)
-		go sshServer.HandleChannels(flag.sshShell, chans)
+		go sshServer.HandleChannels(flag.sslS, chans)
 	}
 }
 
