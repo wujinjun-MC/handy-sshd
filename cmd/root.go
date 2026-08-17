@@ -17,12 +17,12 @@ import (
 type flagType struct {
 	//dnsServer    string
 	showsVersion  bool
-	sslHost       string
-	sslPort       uint16
-	sslUnixSocket string
+	sslH       string
+	sslP       uint16
+	sslUS string
 	sslS      string
 	sslU      []string
-	sslAKeys   []string
+	sslAK   []string
 
 	allowTcpipForward       bool
 	allowDirectTcpip        bool
@@ -37,7 +37,7 @@ type permissionFlagType = struct {
 	flagPtr *bool
 }
 
-type sslU struct {
+type sshUser struct {
 	name     string
 	password string
 }
@@ -68,14 +68,14 @@ func RootCmd() *cobra.Command {
 	}
 
 	rootCmd.PersistentFlags().BoolVarP(&flag.showsVersion, "version", "v", false, "show version")
-	rootCmd.PersistentFlags().StringVarP(&flag.sslHost, "host", "", "", "Listen (e.g. 127.0.0.1)")
-	rootCmd.PersistentFlags().Uint16VarP(&flag.sslPort, "port", "p", 2222, "port")
+	rootCmd.PersistentFlags().StringVarP(&flag.sslH, "host", "", "", "Listen (e.g. 127.0.0.1)")
+	rootCmd.PersistentFlags().Uint16VarP(&flag.sslP, "port", "p", 2222, "port")
 	// NOTE: long name 'unix-socket' is from curl (ref: https://curl.se/docs/manpage.html)
-	rootCmd.PersistentFlags().StringVarP(&flag.sslUnixSocket, "unix-socket", "", "", "Unix socket")
+	rootCmd.PersistentFlags().StringVarP(&flag.sslUS, "unix-socket", "", "", "Unix socket")
 	rootCmd.PersistentFlags().StringVarP(&flag.sslS, "shell", "", "", "Shell")
 	//rootCmd.PersistentFlags().StringVar(&flag.dnsServer, "dns-server", "", "DNS server (e.g. 1.1.1.1:53)")
 	rootCmd.PersistentFlags().StringArrayVarP(&flag.sslU, "user", "u", nil, `user and pass seperated by ":"`)
-	rootCmd.PersistentFlags().StringArrayVarP(&flag.sslAKeys, "keys", "k", nil, "A-Key file")
+	rootCmd.PersistentFlags().StringArrayVarP(&flag.sslAK, "keys", "k", nil, "A-Key file")
 
 	// Permission flags
 	rootCmd.PersistentFlags().BoolVarP(&flag.allowTcpipForward, "allow-tcpip-forward", "", false, "Allow \"-R\" technique")
@@ -117,16 +117,16 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
 		AllowStreamlocalForward: flag.allowStreamlocalForward,
 		AllowDirectStreamlocal:  flag.allowDirectStreamlocal,
 	}
-	var sslU []sslU
+	var sshUsers []sshUser
 	for _, u := range flag.sslU {
 		splits := strings.SplitN(u, ":", 2)
 		if len(splits) != 2 {
 			return fmt.Errorf("invalid user format: %s", u)
 		}
-		sslU = append(sslU, sslU{name: splits[0], password: splits[1]})
+		sshUsers = append(sshUsers, sshUser{name: splits[0], password: splits[1]})
 	}
 	authorizedKeys := make(map[string]bool)
-	for _, k := range flag.sslAKeys {
+	for _, k := range flag.sslAK {
 		hand, err := os.Open(k)
 		if err != nil { continue }
 		scanner := bufio.NewScanner(hand)
@@ -147,7 +147,7 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
         },
 		//Define a function to run when a client attempts a password login
 		PasswordCallback: func(metadata ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
-			for _, user := range sslU {
+			for _, user := range sshUsers {
 				// No auth required
 				if user.name == metadata.User() && user.password == string(pass) {
 					return nil, nil
@@ -157,7 +157,7 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
 		},
 		NoClientAuth: true,
 		NoClientAuthCallback: func(metadata ssh.ConnMetadata) (*ssh.Permissions, error) {
-			for _, user := range sslU {
+			for _, user := range sshUsers {
 				// No auth required
 				if user.name == metadata.User() && user.password == "" {
 					return nil, nil
@@ -174,19 +174,19 @@ func rootRunEWithExtra(cmd *cobra.Command, args []string, flag *flagType, allPer
 	sshConfig.AddHostKey(pri)
 
 	var ln net.Listener
-	if flag.sslUnixSocket == "" {
-		address := net.JoinHostPort(flag.sslHost, strconv.Itoa(int(flag.sslPort)))
+	if flag.sslUS == "" {
+		address := net.JoinHostPort(flag.sslH, strconv.Itoa(int(flag.sslP)))
 		ln, err = net.Listen("tcp", address)
 		if err != nil {
 			return err
 		}
 		logger.Info(fmt.Sprintf("Running on %s...", address))
 	} else {
-		ln, err = net.Listen("unix", flag.sslUnixSocket)
+		ln, err = net.Listen("unix", flag.sslUS)
 		if err != nil {
 			return err
 		}
-		logger.Info(fmt.Sprintf("Running on %s...", flag.sslUnixSocket))
+		logger.Info(fmt.Sprintf("Running on %s...", flag.sslUS))
 	}
 	defer ln.Close()
 
