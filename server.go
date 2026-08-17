@@ -13,7 +13,6 @@ import (
 	"crypto/x509"
 	"encoding/binary"
 	"encoding/pem"
-	"fmt"
 	"github.com/mattn/go-shellwords"
 	"github.com/nwtgck/handy-sshd/sync_generics"
 	"github.com/pkg/sftp"
